@@ -175,6 +175,26 @@ static void *find_fit(size_t asize)
         }
     }
 
+    // Best-Fit search --> 54점 / 100
+    // void *best_fit_bp = NULL; // best fit 블록 포인터 초기화
+    // size_t size_diff = 2147483647; // 사이즈 차이를 저장
+
+    // for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) { // 프롤로그 블록(heap_listp)부터 가용 블록을 탐색
+    //     size_t alloc_size = GET_SIZE(HDRP(bp));
+
+    //     if (!GET_ALLOC(HDRP(bp)) && (asize <= alloc_size)) {
+    //         if (alloc_size - asize < size_diff) { // 할당할 블록의 사이즈와 메모리의 크기의 차이가 더 적은 블록을 선택
+    //             size_diff = alloc_size - asize;
+    //             best_fit_bp = bp;
+    //         }
+    //         else if (alloc_size == asize){ // 만약 요청된 메모리와 같은 크기의 블록이 있다면 그 블록을 바로 반환
+    //             return bp;
+    //         }
+    //     }
+    // }
+
+    // return best_fit_bp; 
+
 
     // No fit.
     return NULL;
