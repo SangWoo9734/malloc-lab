@@ -81,6 +81,7 @@ void *mm_malloc(size_t size);
 void mm_free(void *ptr);
 void *mm_realloc(void *ptr, size_t size);
 
+static void *next_fit_bp = NULL; // Next Fit을 위한 블록 포인터, 다음 가용블록 탐색에서 지난 검색 위치를 기억하고 있어야하기 때문에 전역으로 선언
 
 
 /*
@@ -115,7 +116,7 @@ static void *coalesce(void *bp) {
         bp = PREV_BLKP(bp); // 합쳐진 가용블록의 헤더 위치(이전 블록의 헤더 위치)로 포인터 이동.
     }
 
-
+    next_fit_bp = bp; // Next-Fit 전략을 사용하는 경우 coalescing으로 인해 블록 포인터가 잘못된 부분을 가리키고 있는 경우가 생기기 때문에 coalescing 이후 갱신된 가용 블록의 블록포인터로 갱신해준다.
 
     return bp;
 }
@@ -148,9 +149,28 @@ static void *find_fit(size_t asize)
 {
     void *bp;
 
-    // First-Fit search --> 53점 / 100
-    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) { // 프롤로그 블록(heap_listp)부터 가용 블록을 탐색
+    // // First-Fit search --> 53점 / 100
+    // for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) { // 프롤로그 블록(heap_listp)부터 가용 블록을 탐색
+    //     if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) { // 메모리 요청보다 큰 가용 블록이 나오면 해당 블록의 블록 포인터를 반환.
+    //         return bp;
+    //     }
+    // }
+
+    // Next-Fit search --> 62점 / 100
+    if (next_fit_bp == NULL ) {  // 시작 블록 포인터가 NULL인 경우 heap_listp부터 탐색을 시작
+        next_fit_bp = heap_listp;
+    }
+
+    for (bp = next_fit_bp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) { // 이전 검색 위치부터 가용 블록 탐색
+        if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) { // 메모리 요청보다 큰 가용 블록이 나오면 해당 블록의 블록 포인터를 반환. 
+            next_fit_bp = bp; 
+            return bp;
+        }
+    }
+
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0 && bp != next_fit_bp; bp = NEXT_BLKP(bp)) { // 이전 검색 위치 ~ 힙 최대 영역까지 가용블록이 없는 경우 처음(heap_listp)부터 ~ 이전 탐색 위치까지 검색
         if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) { // 메모리 요청보다 큰 가용 블록이 나오면 해당 블록의 블록 포인터를 반환.
+            next_fit_bp = bp; 
             return bp;
         }
     }
