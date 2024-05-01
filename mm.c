@@ -1,4 +1,4 @@
-/*
+  /*
  * mm-naive.c - The fastest, least memory-efficient malloc package.
  * 
  * In this naive approach, a block is allocated by simply incrementing
@@ -24,11 +24,11 @@
  ********************************************************/
 team_t team = {
     /* Team name */
-    "ateam",
+    "team 8",
     /* First member's full name */
-    "Harry Bovik",
+    "Sangwoo Park",
     /* First member's email address */
-    "bovik@cs.cmu.edu",
+    "psu8430@gmail.com",
     /* Second member's full name (leave blank if none) */
     "",
     /* Second member's email address (leave blank if none) */
@@ -161,14 +161,14 @@ static void *find_fit(size_t asize)
         next_fit_bp = heap_listp;
     }
 
-    for (bp = next_fit_bp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) { // 이전 검색 위치부터 가용 블록 탐색
+    for (bp = NEXT_BLKP(next_fit_bp); GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) { // 이전 검색 위치부터 가용 블록 탐색
         if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) { // 메모리 요청보다 큰 가용 블록이 나오면 해당 블록의 블록 포인터를 반환. 
             next_fit_bp = bp; 
             return bp;
         }
     }
 
-    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0 && bp != next_fit_bp; bp = NEXT_BLKP(bp)) { // 이전 검색 위치 ~ 힙 최대 영역까지 가용블록이 없는 경우 처음(heap_listp)부터 ~ 이전 탐색 위치까지 검색
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0 && bp <= next_fit_bp; bp = NEXT_BLKP(bp)) { // 이전 검색 위치 ~ 힙 최대 영역까지 가용블록이 없는 경우 처음(heap_listp)부터 ~ 이전 탐색 위치까지 검색
         if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) { // 메모리 요청보다 큰 가용 블록이 나오면 해당 블록의 블록 포인터를 반환.
             next_fit_bp = bp; 
             return bp;
@@ -212,12 +212,14 @@ static void place(void *bp, size_t asize)
         PUT(HDRP(bp), PACK(asize, 1)); // 가용블록에 요청받은 메모리 만큼 패킹해준 후,
         PUT(FTRP(bp), PACK(asize, 1));
         bp = NEXT_BLKP(bp);
+        next_fit_bp = bp;
         PUT(HDRP(bp), PACK(csize-asize, 0 )); /// 가용 블록의 남은 메모리를 새로운 가용 블록으로 분리해준다.
         PUT(FTRP(bp), PACK(csize-asize, 0 ));
     }
     else {
         PUT(HDRP(bp), PACK(csize, 1)); // 내부단편화가 발생하지 않는다면 메모리 크기대로 메모리를 패킹
         PUT(FTRP(bp), PACK(csize, 1));
+        next_fit_bp = NEXT_BLKP(bp);
     }
 }
 
@@ -263,6 +265,7 @@ void *mm_malloc(size_t size)
 
     if ((bp = find_fit(asize)) != NULL) { // 블록을 삽입할 수 있는 위치를 탐색
         place(bp, asize); // 위치를 발견했다면 해당 위치에 블록을 삽입
+        next_fit_bp = bp;
         return bp; // 블록의 위치 반환
     }
     
@@ -272,6 +275,7 @@ void *mm_malloc(size_t size)
         return NULL;
     }
     place(bp, asize);
+    next_fit_bp = bp;
     return bp;
 
 }
@@ -291,33 +295,60 @@ void mm_free(void *ptr)
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
-void *mm_realloc(void *bp, size_t size)
-{
-    void *oldptr = bp;
+// void *mm_realloc(void *bp, size_t size)
+// {
+//     void *oldptr = bp;
+//     void *newptr;
+//     size_t copySize;
+
+//     if (size <= 0) { // 예외처리: 요청 사이즈가 0보다 작은 경우 반환
+//         mm_free(bp);
+//         return 0;
+//     }
+
+//     if (bp == NULL) {
+//         return mm_malloc(size); // 예외처리 : 위치 값이 없는 경우 새롭게 사이즈 만큼 생성후 반환 ( 위치 값은 시작 값이 됨. )
+//     }
+    
+//     newptr = mm_malloc(size);
+
+//     if (newptr == NULL) // 메모리를 할당 받을 수 없다면 함수 종료.
+//       return NULL;
+
+//     copySize = GET_SIZE(HDRP(bp)); // 카피할 블록의 크기 값
+
+
+//     if (size < copySize) // 만약 새로운 크기가 이전 블록의 크기보다 작은 경우 크기를 제한
+//       copySize = size;
+    
+//     memcpy(newptr, oldptr, copySize); // newptr에 oldptr의 메모리를 copySize 만큼 복사
+//     mm_free(oldptr); // 복사에 사용된 블록 메모리 삭제
+//     return newptr;
+// }
+
+void *mm_realloc(void *ptr, size_t size) {
+    void *oldptr = ptr;
     void *newptr;
-    size_t copySize;
 
-    if (size <= 0) { // 예외처리: 요청 사이즈가 0보다 작은 경우 반환
-        mm_free(bp);
-        return 0;
+    size_t origin_size = GET_SIZE(HDRP(oldptr)); // 원본 블록 사이즈
+    size_t new_size = size + DSIZE; // 새 블록 사이즈 ( HEADER, FOOTER를 위해 더블워드 추가 )
+
+    if (new_size <= origin_size) {
+        return oldptr;
+    } else {
+        size_t addSize = origin_size + GET_SIZE(HDRP(NEXT_BLKP(oldptr)));
+        
+        if (!GET_ALLOC(HDRP(NEXT_BLKP(oldptr))) && (new_size <= addSize)) { // 가용 블록이면서 사이즈가 충분한지 확인
+            PUT(HDRP(oldptr), PACK(addSize, 1)); // HEADER 패킹
+            PUT(FTRP(oldptr), PACK(addSize, 1)); // FOOTER 패킹
+            return oldptr;
+        } else {
+            newptr = mm_malloc(new_size);
+            if (newptr == NULL) return NULL;
+
+            memmove(newptr, oldptr, new_size);
+            mm_free(oldptr);
+            return newptr;
+        }
     }
-
-    if (bp == NULL) {
-        return mm_malloc(size); // 예외처리 : 위치 값이 없는 경우 새롭게 사이즈 만큼 생성후 반환 ( 위치 값은 시작 값이 됨. )
-    }
-    
-    newptr = mm_malloc(size);
-
-    if (newptr == NULL) // 메모리를 할당 받을 수 없다면 함수 종료.
-      return NULL;
-
-    copySize = GET_SIZE(HDRP(bp)); // 카피할 블록의 크기 값
-
-
-    if (size < copySize) // 만약 새로운 크기가 이전 블록의 크기보다 작은 경우 크기를 제한
-      copySize = size;
-    
-    memcpy(newptr, oldptr, copySize); // newptr에 oldptr의 메모리를 copySize 만큼 복사
-    mm_free(oldptr); // 복사에 사용된 블록 메모리 삭제
-    return newptr;
 }
